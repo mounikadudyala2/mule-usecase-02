@@ -1,0 +1,29 @@
+StudentID,StudentName,Semester,SemesterMarks
+101,Rahul Batra,1,9
+101,Rahul Batra,2,9.5
+101,Rahul Batra,3,8
+101,Rahul Batra,5,7
+102,Amit Shah,1,10
+102,Amit Shah,2,9
+102,Amit Shah,3,6
+102,Amit Shah,4,9
+103,Rahul G,1,9
+103,Rahul G,2,9.5
+103,Rahul G,3,8
+103,Rahul G,4,7
+104,Sonia G,7,9
+104,Sonia G,2,9.5
+104,Sonia G,3,8
+104,Sonia G,6,7
+105,Trump,1,10
+105,Trump,2,9
+105,Trump,3,6
+105,Trump,4,9
+106,Jing Ping,1,10
+106,Jing Ping,2,9
+106,Jing Ping,3,6
+106,Jing Ping,4,9
+107,Baba Ramdev,4,10
+107,Baba Ramdev,5,9
+107,Baba Ramdev,6,6
+107,Baba Ramdev,7,9

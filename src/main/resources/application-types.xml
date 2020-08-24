@@ -1,0 +1,28 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<types:mule xmlns:types="http://www.mulesoft.org/schema/mule/types">
+  <types:catalog>
+    <types:type name="StudentCsv" format="csv">
+      <types:shape format="weave" example="examples/StudentInfo.csv"><![CDATA[%dw 2.0
+
+type StudentCsv = Array<{|  StudentID: String,   StudentName: String,   Semester: String,   SemesterMarks: String|}> {"isQuotedString": "false",
+"header": "true",
+"headerLineNumber": "0"}
+
+]]></types:shape>
+      <types:properties>
+        <types:property name="headerLineNumber" value="0"/>
+        <types:property name="header" value="true"/>
+        <types:property name="isQuotedString" value="false"/>
+      </types:properties>
+    </types:type>
+  </types:catalog>
+  <types:enrichment select="#1b5050cc-b1bd-483d-a893-aaea4a10a395">
+    <types:processor-declaration>
+      <types:input-event>
+        <types:message>
+          <types:payload type="StudentCsv"/>
+        </types:message>
+      </types:input-event>
+    </types:processor-declaration>
+  </types:enrichment>
+</types:mule>

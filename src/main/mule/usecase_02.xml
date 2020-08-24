@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:db="http://www.mulesoft.org/schema/mule/db" xmlns:batch="http://www.mulesoft.org/schema/mule/batch"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd">
+	<file:config name="File_Config" doc:name="File Config" doc:id="840492b0-dd56-4f7e-8350-727061bcdea0" >
+		<file:connection workingDir="/Users/mounikad/Desktop/mulesoft/day3/Input" />
+	</file:config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="633c2982-9213-47d7-af4e-82c103b21683" >
+		<db:my-sql-connection host="localhost" port="3306" user="root" password="Mounika@1303" database="mulesoft_DB" />
+	</db:config>
+	<file:config name="File_Config1" doc:name="File Config" doc:id="501be99d-8676-4329-9348-97d6ddbd2221" >
+		<file:connection workingDir="/Users/mounikad/Desktop/mulesoft/day3/output" />
+	</file:config>
+	<file:config name="File_Config2" doc:name="File Config" doc:id="8059418a-094b-40cf-a05e-35b4877ae190" >
+		<file:connection workingDir="/Users/mounikad/Desktop/mulesoft/day3/Error" />
+	</file:config>
+	<flow name="usecase_02Flow" doc:id="388db62e-73fc-4534-9fe8-867bbc07d4fe" >
+		<file:listener doc:name="Read Student data" doc:id="4b9c9d7d-1e0b-47c0-8d12-416bef256239" config-ref="File_Config" directory="/Users/mounikad/Desktop/mulesoft/day3/Input" autoDelete="true" moveToDirectory="/Users/mounikad/Desktop/mulesoft/day3/Archive" renameTo="#['SourceFile_' ++ (now() as String {format:'yyyy-MM-dd-hh-mm-ss.SS'})]" outputMimeType="application/csv" outputEncoding="UTF-8">
+			<scheduling-strategy >
+				<fixed-frequency frequency="5000" />
+			</scheduling-strategy>
+		</file:listener>
+		<ee:transform doc:name="Transform Message" doc:id="1b5050cc-b1bd-483d-a893-aaea4a10a395" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload groupBy $.Semester pluck $]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="1557d6ea-5ea3-4b36-afe9-c8ef384d24e0" message="#[payload]"/>
+		<batch:job jobName="Batch_of_4_Semesters" doc:id="25ce4940-6a0f-4c85-8358-5853b30cebc7" maxFailedRecords="1" blockSize="4">
+			<batch:process-records >
+				<batch:step name="Batch_Step_Of_1_Semester" doc:id="91bde227-1f4b-40e0-9d01-e5bee26d6b77" >
+					<logger level="INFO" doc:name="Logger" doc:id="7923a871-baa8-48b0-9a7f-ce9e5198db5b" message="Batch Started-#[payload]"/>
+					<ee:transform doc:name="Get Student Count Per Semester" doc:id="33dba1f7-045d-4bf6-9e15-067c3dc44d7e" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	SemesterID:payload[0].Semester,
+	count:sizeOf(payload),
+	AvgMarks:((payload.SemesterMarks) reduce(marks,sum=0) -> sum+marks)/sizeOf(payload)
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<set-variable value="#[payload]" doc:name="Persist Payload" doc:id="310f4e4b-fe2a-4dac-9d2c-2f4be709309e" variableName="SemesterInfo"/>
+					<db:insert doc:name="Write Each Sem Data" doc:id="cf71aa9c-7c65-4a2e-b5a4-3dcaa3dc02ca" config-ref="Database_Config">
+						<db:sql ><![CDATA[INSERT INTO mulesoft_DB.StudentInfo
+          (`SemesterId`, `Count`)
+    VALUES(:semesterId,:count)]]></db:sql>
+						<db:input-parameters ><![CDATA[#[{semesterId : payload.SemesterID, 
+count : payload.count}]]]></db:input-parameters>
+					</db:insert>
+					<set-payload value="#[vars.SemesterInfo]" doc:name="Set Payload" doc:id="2b5cd9e9-53ec-4ae1-833e-6a96f740b420" />
+					<batch:aggregator doc:name="Batch_Of_2_Semesters_Aggregator" doc:id="65aae924-885f-4df9-8d9a-c7a2f4e05d6e" size="2">
+						<ee:transform doc:name="Aggregate_2_Semester" doc:id="13de4f6a-0a97-47c8-a002-14f0301b21a8" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+	Semesters : payload 
+	
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<logger level="INFO" doc:name="Logger" doc:id="3b7c6d5d-6c88-4b1d-ae68-2430b724c83a" message="***batch_of_2_semester_data****-#[payload]"/>
+						<file:write doc:name="Write" doc:id="1e15dbb0-ab26-4ef0-a239-f2d7e948fe0d" config-ref="File_Config1" path="#['BatchFile_' ++ (now() as String {format:'yyy-MM-dd-hh-ss.SS'})]">
+							<file:content ><![CDATA[payload]]></file:content>
+						</file:write>
+					</batch:aggregator>
+				</batch:step>
+				<batch:step name="Failed_Record_Processing" doc:id="ce96b03c-5fe4-4757-81d7-40f3a53bbaf5" acceptPolicy="ONLY_FAILURES">
+					<ee:transform doc:name="Transform Message" doc:id="f35fe152-ceac-495c-8a52-6fb827cede23" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<logger level="INFO" doc:name="Logger" doc:id="46ef5c86-bfa2-41b3-8a23-f85ceecd613b" message="***failed records***#[payload]"/>
+					<file:write doc:name="Error Records" doc:id="3c2bf22d-1c77-4f8a-8816-be3cb9b53b67" config-ref="File_Config2" path="#['ErrorFile_' ++ (now() as String {format:'yyy-MM-dd-hh-ss.SS'})]"/>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<logger level="INFO" doc:name="Logger" doc:id="ae0ad192-17ec-49f2-9949-011d32b5dfa6" message="**On complete Info***#[payload]"/>
+				<db:insert doc:name="Batch Process Matrix" doc:id="674c0fd9-ed43-4b72-b89b-a09d6fde1c4e" config-ref="Database_Config">
+					<db:sql ><![CDATA[INSERT INTO mulesoft_DB.BatchProcessingResult
+          (`BatchId` ,`TotalRecords`,`FailedRecords`,`SuccessfulRecords`)
+    VALUES
+          (:BatchId
+          ,:TotalRecords
+          ,:FailedRecords
+          ,:SuccessfulRecords)]]></db:sql>
+					<db:input-parameters ><![CDATA[#[{BatchId : payload.batchJobInstanceId,
+TotalRecords :payload.totalRecords,  
+FailedRecords : payload.failedRecords,
+SuccessfulRecords : payload.successfulRecords
+}]]]></db:input-parameters>
+				</db:insert>
+			</batch:on-complete>
+		</batch:job>
+	</flow>
+</mule>
